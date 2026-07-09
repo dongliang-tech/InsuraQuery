@@ -91,6 +91,20 @@
 - 浏览器关闭/刷新时自动保存当前对话
 - 历史记录支持按 ID、问题内容、日期范围筛选
 
+## 演示截图
+
+### 主聊天界面
+![主聊天界面](screenshots/chat-main.png)
+
+### 问答详情
+![问答详情](screenshots/detail.png)
+
+### 历史记录
+![历史记录](screenshots/history.png)
+
+### 收藏夹
+![收藏夹](screenshots/favorites.png)
+
 ## 快速开始
 
 ### 前置条件
@@ -183,7 +197,6 @@ InsuraQuery/
 ├── indexer.py              # 文档索引器（扫描 docs/ → 分块 → 向量化 → ES 入库）
 ├── parallel_qa.py          # 并行问答模块（大上下文模式，一次 LLM 回答）
 ├── search.py               # 混合搜索模块（BM25 + Vector + RRF + Route + Tavily）
-├── docker-compose.yml      # 一键启动本地 ES 8.x
 ├── .env.example            # 环境变量模板（复制为 .env 后填入密钥）
 ├── .gitignore              # Git 忽略规则
 ├── requirements.txt        # Python 依赖项
