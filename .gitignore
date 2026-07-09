@@ -1,0 +1,47 @@
+# ── Python ────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ── 密钥 / 环境变量（绝不入库）──────────────
+.env
+.env.*
+!.env.example
+
+# ── 运行时数据 ────────────────────────────
+.chat_data/
+.elasticsearch/
+esdata/
+
+# ── 文档语料（按需放开，默认保留不放）─────
+# 把你想开源的样本文档显式放到 docs/ 后保留即可，
+# 想忽略自己的语料可取消注释下行：
+# docs/*.txt
+# docs/*.pdf
+
+# ── 系统文件 ──────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── 备份文件 ──────────────────────────────
+*.backup
+*.backup_recent
+*.bak
+
+# ── 编辑器 / IDE ──────────────────────────
+.vscode/
+.idea/
+*.swp
+
+# ── 截图等无关素材 ────────────────────────
+*.png
