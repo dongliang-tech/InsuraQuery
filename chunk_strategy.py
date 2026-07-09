@@ -1,8 +1,8 @@
 """
 文档分块模块
 
-对中文保险文档使用 RecursiveCharacterTextSplitter 进行语义分割，
-chunk_size=512 tokens, overlap=128 tokens。
+使用 RecursiveCharacterTextSplitter 对中文保险文档进行语义分割。
+默认 chunk_size=512 字符, overlap=128 字符, 按段落→句子→标点递归分割。
 """
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from config import CHUNK_SIZE, CHUNK_OVERLAP

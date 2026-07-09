@@ -1,28 +1,17 @@
 # 项目依赖（pip install -r requirements.txt）
 # ⚠️ 需要 Python 3.10+
 
-# ── UI 框架 ─────────────────────────────────
-gradio>=6.0.0
+# ── 核心依赖（必须安装）────────────────────────────
+gradio>=6.0.0                           # Gradio Web UI 框架
+elasticsearch>=8.0.0,<9.0.0            # Elasticsearch 8.x 客户端
+httpx>=0.27.0                           # HTTP 客户端（LLM API / Tavily 流式调用）
+requests>=2.31.0                        # HTTP 客户端（Jina Embedding API）
+langchain-text-splitters>=0.0.1        # RecursiveCharacterTextSplitter 文本分块
+tiktoken>=0.5.0                         # Token 计数（langchain 需要）
+pdfplumber>=0.10.0                      # PDF 文本提取
+python-dotenv>=1.0.0                    # 读取 .env 文件
 
-# ── 搜索引擎 ───────────────────────────────
-elasticsearch>=8.0.0,<9.0.0              # ES 8.x 可选，ES 9.x 也兼容
-
-# ── HTTP 客户端 ────────────────────────────
-httpx>=0.27.0                             # LLM API / Tavily 流式调用
-requests>=2.31.0                          # Jina Embedding API
-
-# ── 文档分块 ──────────────────────────────
-langchain-text-splitters>=0.0.1          # RecursiveCharacterTextSplitter
-tiktoken>=0.5.0                          # token 计数（langchain 需要）
-
-# ── PDF 处理 ─────────────────────────────
-pdfplumber>=0.10.0                        # 常规 PDF 文本提取
-
-# ── 环境变量（可选）──────────────────────────
-python-dotenv>=1.0.0                      # 读取 .env 文件（没装则走环境变量）
-
-# ── 扫描件 OCR（可选）────────────────────────
-# 以下依赖仅在索引扫描件 PDF 时需要，es_insurance_search.py 使用
-# pypdfium2>=4.20.0
-# rapidocr>=3.0.0
-# numpy>=1.24.0
+# ── 可选依赖（按需安装）────────────────────────────
+# pypdfium2>=4.20.0                     # PDF 渲染（扫描件 OCR 用）
+# rapidocr>=3.0.0                       # 中文 OCR 识别
+# numpy>=1.24.0                          # 图像处理（rapidocr 需要）

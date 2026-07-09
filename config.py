@@ -1,9 +1,9 @@
 """
-配置模块 — 从环境变量 / .env 读取敏感信息，参数常量集中管理
+配置模块 — 从环境变量读取敏感信息，参数常量集中管理。
 
-读取顺序：
-  1. 进程已有的环境变量（优先级最高，便于 docker / CI 注入）
-  2. 项目根目录的 .env 文件（开发用）
+读取优先级：
+  1. 进程环境变量（最高，适用于 Docker / CI 注入）
+  2. .env 文件（开发用）
 """
 import os
 from pathlib import Path
@@ -28,7 +28,6 @@ ES_PASS = _env("ES_PASS")                       # 从 .env 读取
 ES_INDEX_INPUT = _env("ES_INDEX", "knowledge_base")
 
 INDEX_NAME = ES_INDEX_INPUT                     # 主索引：分块 + 向量
-OLD_INDEX_NAME = "insurance_docs"                # 旧纯文本索引（仅 es_insurance_search.py 使用）
 
 # ─── Jina Embeddings ────────────────────────────────────────
 JINA_API_KEY = _env("JINA_API_KEY")
@@ -46,15 +45,11 @@ CHUNK_OVERLAP = 128     # chunk 间重叠字符数
 DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
 
 # ─── 并行问答参数 ────────────────────────────────────────────
-PARALLEL_CHUNK_GROUP_SIZE = 3       # 每组 chunk 数（历史参数，当前大上下文模式不再分组）
-PARALLEL_MAX_WORKERS = 8            # 并行线程数
-PARALLEL_SEARCH_K = 15              # 并行阶段取 chunks
+PARALLEL_SEARCH_K = 15              # 并行问答阶段取 chunks 数量
 HYBRID_SEARCH_K = 10                # 普通搜索最终返回条数
 HYBRID_NUM_CANDIDATES = 100         # 向量搜索候选数
-RRF_RANK_CONSTANT = 60              # RRF 排名常数
-RRF_WINDOW_SIZE = 100               # RRF 窗口大小
+RRF_RANK_CONSTANT = 60              # RRF 排名常数 (k=60)
 BM25_TITLE_BOOST = 3.0              # title 字段 BM25 权重
-SCORE_THRESHOLD = 0.1               # Tavily fallback 阈值（保留参数，当前路由基于 LLM 判断）
 
 # ─── LLM 路由 ────────────────────────────────────────────────
 LLM_API_BASE = _env("LLM_API_BASE", "https://api.openai.com/v1")

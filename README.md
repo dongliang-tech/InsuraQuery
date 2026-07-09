@@ -1,25 +1,9 @@
-# InsuraQuery 开源说明
-
-> ⚠️ 本项目目前不托管开源语料文档。
-> 要运行索引流程，请在项目根目录下创建 `docs/` 文件夹，放入你的 `.txt` 或 `.pdf` 文件。
->
-> 文件名命名规范（举例）：
-> ```
-> docs/
-> ├── 01-雇主责任险条款.txt
-> ├── 02-工伤保险条例.txt
-> └── 03-商业综合责任险.txt
-> ```
-> 文件名开头如为 `序号-标题` 格式，系统会自动提取标题（如 `02-工伤保险条例.txt` →「工伤保险条例」）。
-
----
-
 # InsuraQuery — AI 保险文档智能问答系统
 
 **保险智答** 是一个基于 **Elasticsearch** + **向量检索** + **大语言模型** 的保险条款智能问答系统。它能够：
 
 - 📥 将保险文档（TXT/PDF）分块后使用 **Jina Embeddings** 向量化，存入 Elasticsearch
-- 🔍 混合检索（BM25 + 向量相似度 + 手动 RRF）召回最相关的文档片段
+- 🔍 混合检索（BM25 + 向量相似度 + RRF 融合）召回最相关的文档片段
 - 🧠 通过 LLM 路由判断本地知识是否足够回答，不足时自动通过 **Tavily** 搜索互联网补充
 - 💬 支持流式对话、收藏历史记录、推荐问题快捷入口
 - ⚡ 检测到复杂（多文档对比/总结类）问题时自动切换为大上下文并行问答模式，一次返回完整结果
@@ -31,20 +15,20 @@
    │
    ▼
 ┌─────────────────────────────┐
-│  问题长度 / 关键词检测       │  ←> 20 字 或含"比较/区别/所有"等
+│  问题复杂度检测              │  ← 长度 > 20 或含"比较/区别/所有"等关键词
 │                             │
-│  简单:  普通搜索             │    复杂:  并行问答
+│  简单:  普通搜索             │     复杂:  并行问答
 │   ┌───────────────┐         │     ┌────────────────┐
-│   │ BM25+Vec → RRF│         │     │ search_local()  │
+│   │ BM25+Vec → RRF│         │     │ search_local(K) │
 │   │ route_decision│         │     │ 取 TOP-15 chunks │
 │   │ LLM 判断路由  │         │     │ 大 context 一次  │
-│   ├─ local: 仅本地│         │     │ LLM 回答 (fast) │
+│   ├─ local: 仅本地│         │     │ LLM 回答         │
 │   ├─ web: +Tavily│         │     └────────────────┘
 │   └───────┬───────┘         │
 └───────────┼─────────────────┘
             ▼
         LLM 流式回答
-        (Gradio UI)
+        (Gradio Web UI)
 ```
 
 ## 技术栈
@@ -53,12 +37,59 @@
 |---|---|---|
 | **UI** | Gradio 6.x | 响应式 Web UI，聊天 + 历史 + 收藏 Tab 布局 |
 | **搜索引擎** | Elasticsearch 8.x | 混合索引：`text` (BM25) + `dense_vector` (cosine) |
-| **向量模型** | Jina Embeddings v3 | `jina-embeddings-v3`, 1024 维，`retrieval.passage` / `retrieval.query` |
-| **LLM 推理** | OpenAI 兼容 API | 可对接任意 /v1/chat/completions 接口（DeepSeek / OpenAI / vLLM 等） |
+| **向量模型** | Jina Embeddings v3 | `jina-embeddings-v3`, 1024 维, `retrieval.passage` / `retrieval.query` |
+| **LLM 推理** | OpenAI 兼容 API | 可对接任意 `/v1/chat/completions` 接口（DeepSeek / OpenAI / vLLM 等） |
 | **网络搜索** | Tavily API | 仅当本地知识不足时自动触发，需在 `.env` 中配置 API Key |
-| **分块策略** | LangChain RecursiveCharacterTextSplitter | `chunk_size=512`, `overlap=128`，按段 → 句 → 标点递归分割 |
-| **检索融合** | 手动 RRF (Reciprocal Rank Fusion) | BM25 + Vector 各自排名按 `1/(k+rank+1)` 融合，`k=60` |
-| **PDF 处理** | pdfplumber | 常规 PDF 文本提取（可选扫描件 OCR 用 pypdfium2 + RapidOCR） |
+| **分块策略** | LangChain RecursiveCharacterTextSplitter | `chunk_size=512`, `overlap=128`, 按 `\n\n` → `\n` → 标点递归分割 |
+| **检索融合** | RRF (Reciprocal Rank Fusion) | BM25 + Vector 各自排名按 `1/(k+rank+1)` 融合, `k=60` |
+| **PDF 处理** | pdfplumber | 常规 PDF 文本提取 |
+
+## 功能详解
+
+### 1. 混合搜索（Hybrid Search）
+
+本地搜索同时使用两种检索方式，通过 RRF 融合排名：
+
+```
+用户查询
+   ├── BM25 全文检索 → title^3 + content
+   ├── Vector 向量检索 → Jina Embedding (1024维)
+   └── RRF 融合 → 最终 TOP-K
+```
+
+- 标题字段在 BM25 中加权 3 倍，提升文档标题命中权重
+- RRF 常数 `k=60` 平衡两种排序方法
+- 向量搜索使用 `num_candidates=100` 保证召回率
+
+### 2. 智能路由（Route）
+
+本地搜索完毕后，将检索结果摘要提交给 LLM，由 LLM 判断：
+
+| 路由结果 | 触发条件 | 行为 |
+|---|---|---|
+| **local** | 本地知识库明确包含答案 | 直接使用本地结果回答 |
+| **web** | 本地内容不相关或不完整 | 调用 Tavily API 搜索互联网补充 |
+
+路由判断使用 `temperature=0` 确保决策的确定性。
+
+### 3. 复杂问题检测
+
+自动检测用户问题是否复杂，使用两种模式：
+
+| 模式 | 触发条件 | 检索策略 | LLM 调用 | 适用场景 |
+|---|---|---|---|---|
+| **普通搜索** | 简单问题 | BM25 + Vector + RRF (K=10) | 流式生成 | 单点事实查询 |
+| **并行问答** | 长度 > 20 或含比较/区别/总结等关键词 | 搜索 TOP-15 chunks | 大 context 一次非流式 (fast model) | 多文档对比/总结 |
+
+复杂问题检测关键词：`比较`、`区别`、`各`、`分别`、`所有`、`总结`、`汇总`
+
+### 4. 会话管理
+
+- 每次问答自动保存到 `.chat_data/history.json`
+- 多轮对话自动聚合为一个 session 保存
+- 支持收藏 / 取消收藏 / 删除 / 清空
+- 浏览器关闭/刷新时自动保存当前对话
+- 历史记录支持按 ID、问题内容、日期范围筛选
 
 ## 快速开始
 
@@ -74,7 +105,8 @@
 git clone <your-repo-url>
 cd InsuraQuery
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
 pip install -r requirements.txt
 ```
 
@@ -84,9 +116,14 @@ pip install -r requirements.txt
 docker compose up -d
 ```
 
-启动后会自动创建一个单节点 ES 实例，默认密码为 `changeme_elastic_password`（在 `docker-compose.yml` 的 `ELASTIC_PASSWORD` 环境变量中设置）。
+启动后会自动创建一个单节点 ES 实例：
 
-> 你可以修改 docker-compose.yml 中的密码，然后在 `.env` 中填写对应的 `ES_PASS`。
+- **地址**: `https://localhost:9200`
+- **用户**: `elastic`
+- **默认密码**: `changeme_elastic_password`（在 `docker-compose.yml` 的 `ELASTIC_PASSWORD` 中设置）
+- **内存**: 1G（`-Xms1g -Xmx1g`）
+
+> 你可以修改 `docker-compose.yml` 中的密码，然后在 `.env` 中填写对应的 `ES_PASS`。
 
 ### 3. 配置环境变量
 
@@ -94,16 +131,22 @@ docker compose up -d
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，填入你的密钥：
+编辑 `.env` 文件，填入你的密钥（详见 [API 密钥获取](#api-密钥获取)）：
 
-| 变量 | 必填 | 获取方式 |
-|---|---|---|
-| `ES_PASS` | ✅ | docker-compose.yml 中设置的密码 |
-| `JINA_API_KEY` | ✅ | [jina.ai](https://jina.ai/embeddings/) 注册获取 |
-| `TAVILY_API_KEY` | 可选 | [tavily.com](https://tavily.com/) 注册获取 |
-| `LLM_API_BASE` | ✅ | API 服务地址，默认兼容 OpenAI 格式 |
-| `LLM_API_KEY` | ✅ | API 密钥 |
-| `LLM_MODEL` | ✅ | 模型名称（默认 deepseek-v4-pro） |
+| 变量 | 必填 | 默认值 | 说明 |
+|---|---|---|---|
+| `ES_HOST` | ✅ | `https://localhost:9200` | ES 地址 |
+| `ES_USER` | ✅ | `elastic` | ES 用户名 |
+| `ES_PASS` | ✅ | — | ES 密码 |
+| `ES_INDEX` | 可选 | `knowledge_base` | ES 索引名 |
+| `JINA_API_KEY` | ✅ | — | Jina Embeddings API Key |
+| `JINA_MODEL` | 可选 | `jina-embeddings-v3` | 向量模型名 |
+| `JINA_EMBED_DIMS` | 可选 | `1024` | 向量维度 |
+| `TAVILY_API_KEY` | 可选 | — | Tavily 网络搜索 API Key |
+| `LLM_API_BASE` | ✅ | `https://api.openai.com/v1` | LLM API 地址 |
+| `LLM_API_KEY` | ✅ | — | LLM API 密钥 |
+| `LLM_MODEL` | ✅ | `deepseek-v4-pro` | 问答主模型 |
+| `LLM_MODEL_FAST` | 可选 | `deepseek-v4-flash` | 大上下文场景的快速模型 |
 
 ### 4. 放入文档并建立索引
 
@@ -114,10 +157,13 @@ mkdir -p docs
 python3 indexer.py
 ```
 
-索引器会：
+索引器执行流程：
 1. 扫描 `docs/` 下所有 `.txt` 和 `.pdf` 文件
-2. 调用 Jina Embeddings API 向量化
-3. 创建 ES 索引 `knowledge_base` 并写入分块 + 向量
+2. 按 `\n\n` → `\n` → 标点递归分割为 chunk（`chunk_size=512`, `overlap=128`）
+3. 调用 Jina Embeddings API 批量向量化（每批 100 条）
+4. 创建 ES 索引 `knowledge_base`（如果不存在）并批量写入 chunks + 向量（每批 50 条）
+
+> **文件名规范**：建议使用 `序号-标题` 格式（如 `01-雇主责任险条款.txt`），系统会自动提取标题。
 
 ### 5. 启动 Web UI
 
@@ -127,71 +173,33 @@ python3 app.py
 
 浏览器访问 **http://127.0.0.1:7860**
 
+首次启动时会自动检查 ES 索引是否存在，如果不存在会提示先运行 `indexer.py`。
+
 ## 项目结构
 
 ```
 InsuraQuery/
-├── app.py                  # Gradio UI 主文件，含聊天 / 历史 / 收藏 Tab
+├── app.py                  # Gradio UI 主文件（聊天 / 历史 / 收藏 / 详情管理）
+├── chunk_strategy.py       # 文本分块策略（RecursiveCharacterTextSplitter）
+├── chat_manager.py         # 会话和收藏持久化（JSON 文件读写）
 ├── config.py               # 配置模块（环境变量 + 参数常量）
-├── indexer.py              # 文档索引：扫描 docs/ → 分块 → Jina Embed → ES 入库
-├── search.py               # 混合搜索：BM25 + Vector (RRF) + Route 路由 + Tavily
-├── parallel_qa.py          # 并行问答：大上下文模式，一次 LLM 回答
-├── chunck_strategy.py      # 文本分块策略（RecursiveCharacterTextSplitter）
-├── chat_manager.py         # 会话 / 收藏持久化（JSON 文件）
-├── es_insurance_search.py  # [历史遗留] 纯文本 ES 索引导航脚本（含扫描件 OCR）
+├── indexer.py              # 文档索引器（扫描 docs/ → 分块 → 向量化 → ES 入库）
+├── parallel_qa.py          # 并行问答模块（大上下文模式，一次 LLM 回答）
+├── search.py               # 混合搜索模块（BM25 + Vector + RRF + Route + Tavily）
 ├── docker-compose.yml      # 一键启动本地 ES 8.x
 ├── .env.example            # 环境变量模板（复制为 .env 后填入密钥）
 ├── .gitignore              # Git 忽略规则
-├── requirements.txt        # Python 依赖
+├── requirements.txt        # Python 依赖项
 └── docs/                   # 文档目录（用户自行放入 .txt / .pdf）
 ```
 
-## 核心功能详解
-
-### 1. 混合搜索（Hybrid Search）
-
-```
-用户查询
-   ├── Jina Embeddings → 向量查询
-   ├── BM25 (title^3 + content) → 全文查询
-   └── 手动 RRF 融合两个排名 → 最终 TOP-K
-```
-
-- 使用 Jina Embeddings v3 的 `retrieval.query` 任务模式生成查询向量
-- 标题字段在 BM25 中加权 3 倍，提升文档标题命中权重
-- RRF 常数 `k=60` 平衡两种排序方法
-
-### 2. 智能路由（Route）
-
-本地搜索完毕后，将检索结果摘要提交给 LLM，由 LLM 判断：
-- **local**：本地知识足以完整回答，直接使用本地结果
-- **web**：本地知识不足，自动调用 Tavily API 搜索互联网补充
-
-路由判断使用 `temperature=0` 确保决策的确定性。
-
-### 3. 复杂问题检测
-
-自动检测用户问题是否复杂（长度 > 20 字符或包含「比较」「区别」「总结」等关键词）：
-
-| 模式 | 检索策略 | LLM 调用 | 适用场景 |
-|---|---|---|---|
-| **普通搜索** | BM25 + Vector + RRF (K=10) | 流式生成 | 单点事实查询 |
-| **并行问答** | search_local (K=15) + 大 context | 一次非流式 (fast model) | 多文档对比/总结 |
-
-### 4. 会话管理
-
-- 每次问答自动保存到 `.chat_data/history.json`
-- 支持收藏 / 取消收藏 / 删除 / 清空
-- 浏览器关闭时自动保存当前对话
-- 支持多轮对话 session 存储
-
-## API 密钥获取地址
+## API 密钥获取
 
 | 服务 | 注册地址 | 用途 |
 |---|---|---|
 | Jina Embeddings | https://jina.ai/embeddings/ | 文本向量化（免费额度 1M tokens） |
 | Tavily Search | https://tavily.com/ | 网络搜索补充（免费每月 1000 次） |
-| Elasticsearch | — | 本地部署（Docker）免费开源 |
+| Elasticsearch | — | 本地 Docker 部署（免费开源） |
 | LLM (DeepSeek) | https://platform.deepseek.com/ | 问答推理（按量计费） |
 
 ## 许可

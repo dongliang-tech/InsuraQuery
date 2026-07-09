@@ -164,12 +164,7 @@ def create_app():
             elem_classes="chat-title",
         )
 
-        # 新建对话按钮——通过 JS 移到 Tab 行末尾（紧跟「🔍 详情管理」之后）
-        # 新建对话按钮——旧的定义被覆盖，新定义在 Tab 内部
-
         with gr.Tab("💬 智能问答"):
-
-
             EXAMPLES = [
                 "工伤保险和雇主险有什么区别？",
                 "雇主责任险的赔偿范围是什么？",
@@ -314,9 +309,7 @@ def create_app():
                 return None
             demo.unload(fn=_on_unload)
 
-            # 推荐问题：每个按钮 click 时同样走 on_send；如果正在回答中 → on_send 内部直接返回
-
-            # 推荐问题：每个按钮 click 时同样走 on_send；如果正在回答中 → on_send 内部直接返回
+            # 推荐问题：每个按钮 click 时同样走 on_send
             for b in example_buttons:
                 b.click(
                     fn=lambda text, responding: text if not responding else gr.update(),
@@ -780,9 +773,6 @@ button.new-chat-btn:hover {
   background: #eff6ff !important;
   color: #2563eb !important;
 }
-/* 旧 .new-chat-btn-row 不再需要 */
-.new-chat-btn-row { display: none !important; }
-
 /* ── Tab 导航 ── */
 .tabs { margin-bottom: 6px !important; position: relative !important; }
 .tab-nav { display: flex !important; align-items: stretch !important; }
@@ -809,13 +799,11 @@ button.new-chat-btn:hover {
   box-shadow: inset 0 -2px 0 #2563eb !important;
 }
 
-/* 添加强制隐藏 label-content（隐藏 DateTime 的 "Date" 文字行） */
+/* 隐藏 DateTime 的 label-content（"Date" 文字行） */
 .search-date .label-content { display: none !important; height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; }
 
 /* ── 搜索栏整行：各输入框挨着放，间隔 6px ── */
 .search-bar-row { gap: 6px !important; }
-
-/* （旧 .new-chat-btn 重复定义已合并，见上方） */
 
 /* ── 推荐问题按钮 ── */
 .examples-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -880,15 +868,11 @@ button[variant="primary"] {
 
 /* ── 搜索栏输入框（与按钮等高） ── */
 .search-field { align-self: stretch !important; padding: 0 !important; margin: 0 !important; height: 38px !important; min-height: 38px !important; border: none !important; background: transparent !important; box-shadow: none !important; }
-/* Gradio Textbox(container=False) 残留的 label：
-   display:contents 让它在布局上消失，但其中的输入框仍然正常显示和参与 flex 布局 */
 .search-field > label,
 .search-field label.svelte-1hguek3 {
   display: contents !important;
 }
-/* 隐藏 Textbox 内部 wrap（这是 gradio 额外渲染的隐藏副本） */
 .search-field .wrap.hide { display: none !important; }
-/* sr-only 的 "Textbox" 文字标签也不需要重复可见 */
 .search-field span.sr-only { display: none !important; }
 .search-field textarea, .search-field input, .search-field .wrap, .search-field .svelte-1t1myr {
   height: 38px !important;
@@ -900,7 +884,6 @@ button[variant="primary"] {
   box-sizing: border-box !important;
   width: 100% !important;
 }
-/* 隐藏所有内部白色容器/间距，去掉外层块级容器边框（去掉外层套的框） */
 .search-field .wrap,
 .search-field .form,
 .search-field > div,
@@ -917,7 +900,6 @@ button[variant="primary"] {
   background: transparent !important;
   min-height: 38px !important;
 }
-/* 强制去掉 Textbox/Block 最外层容器的边框（container=False 仍残留的外框） */
 .search-field,
 .search-field.contain,
 .search-field > .svelte-1ih1fbe,
@@ -930,10 +912,8 @@ button[variant="primary"] {
 }
 .auto-width-btn { height: 38px !important; min-height: 38px !important; padding: 0 14px !important; }
 .search-date .fp-date-bound { display: none !important; }
-/* 隐藏 DateTime 的 label、所有 padding/margin */
 .search-date { padding: 0 !important; gap: 0 !important; margin: 0 !important; align-self: stretch !important; }
 .search-date > label { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
-/* 强制清理所有容器白条 */
 .search-date > div, .search-date > .container, .search-date .svelte-1flm9jx,
 .search-date .gradio-container, .search-date .gradio-container > *,
 .search-date .svelte-1plpy97, .search-date .block {

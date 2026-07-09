@@ -45,3 +45,6 @@ Thumbs.db
 
 # ── 截图等无关素材 ────────────────────────
 *.png
+# 但保留 screenshots/ 下的示例截图（用于 README 展示）
+!screenshots/*.png
+

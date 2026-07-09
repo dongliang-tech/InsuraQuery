@@ -1,4 +1,10 @@
-"""会话和收藏管理模块"""
+"""
+会话和收藏管理模块
+
+使用 JSON 文件持久化存储：
+- `.chat_data/history.json` — 所有对话记录
+- `.chat_data/favorites.json` — 收藏的对话
+"""
 
 import json
 import os

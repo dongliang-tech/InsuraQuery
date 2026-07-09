@@ -10,7 +10,7 @@ import time
 
 import requests
 
-from chunck_strategy import chunk_documents
+from chunk_strategy import chunk_documents
 from config import (
     DOCS_DIR,
     ES_HOST,

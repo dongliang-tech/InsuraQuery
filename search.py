@@ -23,7 +23,6 @@ from config import (
     JINA_EMBED_DIMS,
     JINA_MODEL,
     RRF_RANK_CONSTANT,
-    SCORE_THRESHOLD,
     TAVILY_API_KEY,
     LLM_API_BASE,
     LLM_API_KEY,
@@ -212,7 +211,7 @@ def search_local(query: str, k: int = None) -> list[dict]:
     bm25_hits = bm25_result["hits"]["hits"]
     ranked = {}
 
-    def _rrf_score(rank: int, const: float = 60.0) -> float:
+    def _rrf_score(rank: int, const: float = RRF_RANK_CONSTANT) -> float:
         return 1.0 / (const + rank + 1)
 
     for rank, hit in enumerate(bm25_hits):
