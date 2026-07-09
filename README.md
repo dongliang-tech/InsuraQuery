@@ -110,20 +110,17 @@ source venv/bin/activate        # macOS/Linux
 pip install -r requirements.txt
 ```
 
-### 2. 启动 Elasticsearch（Docker）
+### 2. 启动 Elasticsearch
 
-```bash
-docker compose up -d
-```
-
-启动后会自动创建一个单节点 ES 实例：
+请自行部署 Elasticsearch 8.x，确保服务可访问。推荐配置：
 
 - **地址**: `https://localhost:9200`
 - **用户**: `elastic`
-- **默认密码**: `changeme_elastic_password`（在 `docker-compose.yml` 的 `ELASTIC_PASSWORD` 中设置）
-- **内存**: 1G（`-Xms1g -Xmx1g`）
+- **密码**: 在部署时设置的密码
 
-> 你可以修改 `docker-compose.yml` 中的密码，然后在 `.env` 中填写对应的 `ES_PASS`。
+部署方式（任选其一）：
+- **Docker**: `docker run -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" -e "ELASTIC_PASSWORD=your_password" docker.elastic.co/elasticsearch/elasticsearch:8.19.0`
+- **官方安装**: 参考 [Elasticsearch 官方文档](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html)
 
 ### 3. 配置环境变量
 
